@@ -1,0 +1,484 @@
+
+#include <AFMotor.h>
+#include <SoftwareSerial.h>
+#include <Servo.h>
+
+SoftwareSerial my_Bluetooth(A0, A1);
+
+#define MOTOR_PIN 12
+#define MOTOR_CLK 4
+#define MOTOR_ENABLE 7
+#define MOTOR_DATA 8
+
+#define MOTOR1A 2
+#define MOTOR1B 3
+#define MOTOR2A 1
+#define MOTOR2B 4
+#define MOTOR3A 5
+#define MOTOR3B 7
+#define MOTOR4A 0
+#define MOTOR4B 6
+
+#define MOTOR1_PWM 11
+#define MOTOR2_PWM 3
+#define MOTOR3_PWM 6
+#define MOTOR4_PWM 5
+#define SERVO1_PWM 10
+#define SERVO2_PWM 9
+
+#define pir_Sensor_Pin A4
+#define buzzPin A5
+#define myLed_Pin A5
+
+#define MOTOR_FORWARD 1
+#define MOTOR_BACKWARD 2
+#define MOTOR_BRAKE 3
+#define MOTOR_RELEASE 4
+
+int deger;
+
+Servo servo_1;
+Servo servo_2;
+
+int servo1_position;
+int maximum_Range = 255; 
+int minimum_Range = 0; 
+int gear=0;
+
+const int trig_Pin = A2;
+const int echo_Pin = A3;
+
+long ultrasonic_Duration;
+int ultrasonic_Distance;
+
+
+int distance_R = 0;
+int distance_L =  0;
+
+int distance = 100;
+
+int val = 0;
+
+
+void setup() {
+
+      my_Bluetooth.begin(9600);
+      Serial.begin(9600);
+      
+      servo_1.attach(SERVO1_PWM);
+      servo_2.attach(SERVO2_PWM);
+      
+      pinMode(trig_Pin, OUTPUT); 
+      pinMode(echo_Pin, INPUT); 
+      
+      pinMode (myLed_Pin,OUTPUT);
+    
+      pinMode(buzzPin, OUTPUT);
+      pinMode (pir_Sensor_Pin, INPUT);
+}
+
+void loop() {
+        mesafe(); 
+   //     mesafe.println("distance:" +mesafe());
+
+
+
+    if (my_Bluetooth.available())
+      {
+        bluetooth();  
+      }
+
+if(deger=='5'){
+ if (mesafe()<25) {  // without bluetooth connection....
+   motorBreak();
+   delay(10);
+  servoWithUltraSonic();
+  delay(10);
+}else if (mesafe()>25) {
+            delay(10);
+
+    moveMOTOR_FORWARD();
+  }
+}
+/*
+      if (mesafe()<25) {  // without bluetooth connection....
+   motorBreak();
+   delay(10);
+  servoWithUltraSonic();
+  delay(10);
+}else if (mesafe()>25) {
+            delay(10);
+
+    moveMOTOR_FORWARD();
+  }
+
+  */
+
+     pirSensor ();
+}
+
+// BLUETOOTH
+
+void bluetooth() {
+  
+ deger=my_Bluetooth.read();
+
+// MOTOR_FORWARD
+if(deger=='1' /* && gear<=80 && gear>=0*/ /* &&  ultrasonic_Distance>30 */ ){
+         moveMOTOR_FORWARD();
+}
+
+// MOTOR_BACKWARD
+if (deger=='0' /*&& gear<=80 && gear>=0*/ /* && ultrasonic_Distance>=30 */){
+          moveMOTOR_BACKWARD();
+}
+
+
+// LEFT
+if (deger=='2'){
+          moveLeft();
+          delay(50);
+}
+
+// RIGHT
+if (deger=='3'){
+      moveRight();
+                delay(50);
+
+}
+
+// break
+if(deger=='4'){
+       motorBreak();
+                 delay(50);
+
+}
+
+
+
+  
+  }
+
+// end of the bluetooth***
+
+// PIR sensor...
+
+
+void pirSensor () {
+    if(digitalRead(pir_Sensor_Pin) == HIGH) 
+{
+ digitalWrite(buzzPin, HIGH); 
+ //digitalWrite(12, HIGH); 
+ Serial.println("motion detected");
+}
+else // 
+ {
+   Serial.println("scanning");
+ digitalWrite(buzzPin, LOW); 
+// digitalWrite(12, LOW); 
+// Serial.println("scanning");
+}
+  } 
+
+// end of the PIR sensor*****
+
+
+// servoWithUltraSonic....
+
+void servoWithUltraSonic () {
+
+   Serial.println("***in servoWithUltraSonic!!!***");
+
+               motorBreak();
+               delay(100);
+               moveMOTOR_BACKWARD();
+               delay(200);
+               motorBreak();
+               delay(100);
+               melodi(250);
+        //    moveMOTOR_BACKWARD();
+               delay(200);        
+     
+        //  digitalWrite(myLed_Pin,HIGH);
+
+          servo_1.write(0);
+                  delay(2000);
+                   servo_1.write(180); 
+                  mesafe();
+
+        distance_L=ultrasonic_Distance;
+                  delay(2000);
+          servo_1.write(90);
+                  mesafe();
+        distance_R=ultrasonic_Distance;
+                     delay(2000);
+
+//           digitalWrite(myLed_Pin,LOW);
+
+           if(distance_R>distance_L)
+          {
+            moveRight();
+              delay(350);
+              moveLeft();
+                delay(60);
+                }
+                else if(distance_R<distance_L) {
+              moveLeft();
+                delay(350);
+                moveRight();
+                delay(60);
+            }
+            if(mesafe()>30){ 
+        moveMOTOR_FORWARD();
+            }
+ }
+
+// end of the servoWithUltraSonic****
+
+// Mesafe ...
+int mesafe() {
+
+digitalWrite(trig_Pin, LOW);
+
+delayMicroseconds(2);
+
+digitalWrite(trig_Pin, HIGH);
+
+delayMicroseconds(10);
+
+digitalWrite(trig_Pin, LOW);
+
+ultrasonic_Duration = pulseIn(echo_Pin, HIGH);
+
+ultrasonic_Distance = ultrasonic_Duration / 58.2;
+
+Serial.print("Distance: ");
+Serial.println(ultrasonic_Distance);
+  return ultrasonic_Distance;
+  }
+
+// end of the mesafe ölçüm****
+
+
+// buzzer...
+  
+int melodi(int dly)
+{
+  tone(buzzPin, 1.7);
+  delay(dly);
+  noTone(buzzPin);
+  delay(dly);
+}
+
+// end of the buzzer****
+
+// MOVE MOTOR_FORWARD....
+void moveMOTOR_FORWARD () {
+      //    motor(1, MOTOR_FORWARD, 135);
+           //         motor(2, MOTOR_FORWARD, 135);
+                              motor(3, MOTOR_FORWARD, 145);
+                                       motor(4, MOTOR_FORWARD, 145);
+                           delay(50);
+  
+}
+
+//// end of the MOVE MOTOR_FORWARD*****
+
+void moveMOTOR_BACKWARD () {
+// MOTOR_BACKWARD....
+      //   motor(1, MOTOR_BACKWARD, 125);
+           //         motor(2, MOTOR_BACKWARD, 125);
+                             motor(3, MOTOR_BACKWARD, 145);
+                                        motor(4, MOTOR_BACKWARD, 145);
+                                        delay(50);
+  
+}
+// end of the MOTOR_BACKWARD****
+
+
+
+// LEFT....
+void moveLeft() {
+       // motor(2, MOTOR_FORWARD, 170);
+                   motor(4, MOTOR_BACKWARD, 185);
+                         //    motor(1, MOTOR_BACKWARD, 170);
+                                       motor(3, MOTOR_FORWARD, 185);
+                                        delay(50);
+}
+
+// end of the LEFT****
+
+// RIGHT....
+void moveRight() {
+  //  motor(1, MOTOR_FORWARD, 170);
+                  motor(3, MOTOR_BACKWARD, 185);
+                        //      motor(2, MOTOR_BACKWARD, 170);
+                                        motor(4, MOTOR_FORWARD, 185);
+                                           delay(50);
+}
+
+// end of the RIGHT*****.
+
+// motorBreak
+void motorBreak(){
+   motor(1, MOTOR_RELEASE, 0);
+                    motor(2, MOTOR_RELEASE, 0);
+                              motor(3, MOTOR_RELEASE, 0);
+                                        motor(4, MOTOR_RELEASE, 0);
+                                        delay(50);
+}
+//end of the motorBreak****
+
+// lookRight....
+void lookRight()
+{
+servo1_position=0;
+  delay(100);
+servo_1.write(servo1_position);
+delay(100);
+servo_1.write(0); 
+delay(100);
+servo_1.write(90); 
+delay(2000);
+}
+// end of the lookRight***
+
+//lookLeft....
+void lookLeft()
+{
+servo1_position=0;
+delay(100);
+servo_1.write(servo1_position);
+delay(100);
+servo_1.write(0); 
+delay(100);
+servo_1.write(90); 
+delay(2000);
+}
+
+// end of the lookLeft***
+
+void motor(int n_Motor, int get_command, int motor_speed)
+{
+  int motorA, motorB;
+
+  if (n_Motor >= 1 && n_Motor <= 4)
+  {  
+    switch (n_Motor)
+    {
+    case 1:
+      motorA   = MOTOR1A;
+      motorB   = MOTOR1B;
+      break;
+    case 2:
+      motorA   = MOTOR2A;
+      motorB   = MOTOR2B;
+      break;
+    case 3:
+      motorA   = MOTOR3A;
+      motorB   = MOTOR3B;
+      break;
+    case 4:
+      motorA   = MOTOR4A;
+      motorB   = MOTOR4B;
+      break;
+    default:
+      break;
+    }
+
+    switch (get_command)
+    {
+    case MOTOR_FORWARD:
+      motor_output (motorA, HIGH, motor_speed);
+      motor_output (motorB, LOW, -1); 
+      break;
+    case MOTOR_BACKWARD:
+      motor_output (motorA, LOW, motor_speed);
+      motor_output (motorB, HIGH, -1); 
+      break;
+    case MOTOR_BRAKE:
+      motor_output (motorA, LOW, 255); 
+      motor_output (motorB, LOW, -1);  
+      break;
+    case MOTOR_RELEASE:
+      motor_output (motorA, LOW, 0); 
+      motor_output (motorB, LOW, -1); 
+      break;
+    default:
+      break;
+    }
+  }
+}
+
+void motor_output (int output, int high_low, int motor_speed)
+{
+  int motor_PWM;
+
+  switch (output)
+  {
+  case MOTOR1A:
+  case MOTOR1B:
+    motor_PWM = MOTOR1_PWM;
+    break;
+  case MOTOR2A:
+  case MOTOR2B:
+    motor_PWM = MOTOR2_PWM;
+    break;
+  case MOTOR3A:
+  case MOTOR3B:
+    motor_PWM = MOTOR3_PWM;
+    break;
+  case MOTOR4A:
+  case MOTOR4B:
+    motor_PWM = MOTOR4_PWM;
+    break;
+  default:
+    motor_speed = -3333;
+    break;
+  }
+
+  if (motor_speed != -3333)
+  {
+
+    shiftWrite(output, high_low);
+
+    if (motor_speed >= 0 && motor_speed <= 255)    
+    {
+      analogWrite(motor_PWM, motor_speed);
+    }
+  }
+}
+
+
+void shiftWrite(int output, int high_low)
+{
+  static int latch_copy;
+  static int shift_register_initialized = false;
+
+
+  if (!shift_register_initialized)
+  {
+    pinMode(MOTOR_PIN, OUTPUT);
+    pinMode(MOTOR_ENABLE, OUTPUT);
+    pinMode(MOTOR_DATA, OUTPUT);
+    pinMode(MOTOR_CLK, OUTPUT);
+
+    digitalWrite(MOTOR_DATA, LOW);
+    digitalWrite(MOTOR_PIN, LOW);
+    digitalWrite(MOTOR_CLK, LOW);
+    digitalWrite(MOTOR_ENABLE, LOW);
+
+    latch_copy = 0;
+
+    shift_register_initialized = true;
+  }
+
+
+  bitWrite(latch_copy, output, high_low);
+
+  shiftOut(MOTOR_DATA, MOTOR_CLK, MSBFIRST, latch_copy);
+  delayMicroseconds(5);   
+  digitalWrite(MOTOR_PIN, HIGH);
+  delayMicroseconds(5);  
+  digitalWrite(MOTOR_PIN, LOW);
+}
