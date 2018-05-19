@@ -1,6 +1,8 @@
 # ceng-407-408-project-sensor-programming
 ceng-407-408-project-sensor-programming created by GitHub Classroom
 
+    ## _INSTALLATION & COMPILATION GUIDE_ ##
+
 To install the app, firstly, you must have Google Play installed on your Android Device.
 
 If you have Google Play installed, you need to download the application called Arduino Bluetooth Controller.
